@@ -42,6 +42,23 @@ class MlnxHardwareManager(base.IronicAgentTest):
             CLIENT_ID,
             mlnx._generate_client_id(IB_ADDRESS))
 
+    def test_get_clean_steps(self):
+        expected_clean_steps = [{'abortable': False,
+                                 'argsinfo': {
+                                     'firmware_config': {
+                                         'description': 'url for yaml config',
+                                         'required': True},
+                                     'firmware_url': {
+                                         'description':
+                                             'url for bin directory',
+                                         'required': False}},
+                                 'interface': 'deploy',
+                                 'priority': 0,
+                                 'reboot_requested': True,
+                                 'step': 'update_nvidia_firmware'}]
+        self.assertEqual(self.hardware.get_clean_steps(self.node, []),
+                         expected_clean_steps)
+
     @mock.patch.object(os, 'listdir', autospec=True)
     @mock.patch.object(hardware, '_get_device_info', autospec=True)
     def test_detect_hardware(self, mocked_get_device_info, mock_listdir):

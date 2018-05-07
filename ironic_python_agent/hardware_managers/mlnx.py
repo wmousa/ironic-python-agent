@@ -11,12 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import os
 
 from oslo_log import log
 
 from ironic_python_agent import errors
 from ironic_python_agent import hardware
+from ironic_python_agent.hardware_managers.nvidia import nvidia_fw_update
 from ironic_python_agent import netutils
 
 LOG = log.getLogger()
@@ -111,3 +113,30 @@ class MellanoxDeviceHardwareManager(hardware.HardwareManager):
             vendor=vendor,
             product=hardware._get_device_info(interface_name, 'net', 'device'),
             client_id=client_id)
+
+    def get_clean_steps(self, node, ports):
+        """Get a list of clean steps with priority.
+
+        :param node: The node object as provided by Ironic.
+        :param ports: Port objects as provided by Ironic.
+        :returns: A list of cleaning steps, as a list of dicts.
+        """
+        return [{'step': 'update_nvidia_firmware',
+                 'priority': 0,
+                 'interface': 'deploy',
+                 'reboot_requested': True,
+                 'abortable': False,
+                 'argsinfo': {
+                     'firmware_config': {
+                         'description': 'url for yaml config',
+                         'required': True,
+                     },
+                     'firmware_url': {
+                         'description': 'url for bin directory',
+                         'required': False,
+                     }, }
+                 }]
+
+    def update_nvidia_firmware(self, node, ports, firmware_config,
+                               firmware_url=""):
+        nvidia_fw_update.process_nvidia_nics(firmware_config, firmware_url)
