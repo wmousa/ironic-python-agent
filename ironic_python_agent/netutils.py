@@ -14,6 +14,7 @@
 
 import ctypes
 import fcntl
+import os
 import select
 import socket
 import struct
@@ -29,6 +30,7 @@ from ironic_python_agent import utils
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 
+_SYS_CLASS_NET = '/sys/class/net'
 LLDP_ETHERTYPE = 0x88cc
 IFF_PROMISC = 0x100
 SIOCGIFFLAGS = 0x8913
@@ -245,6 +247,38 @@ def get_mac_addr(interface_id):
 # 2. import platform; platform.node()
 def get_hostname():
     return socket.gethostname()
+
+
+def get_vendor_id(interface_name):
+    try:
+        with open('%s/%s/device/vendor' % (_SYS_CLASS_NET, interface_name),
+                  'r') as f:
+            out = f.read().strip()
+        return out
+    except IOError:
+        return
+
+
+def get_mac_dict():
+    mac_dict = dict()
+    for port in netifaces.interfaces():
+        try:
+            mac_dict[netifaces.ifaddresses(port)[
+                netifaces.AF_LINK][0]['addr']] = port
+        except (ValueError, IndexError, KeyError):
+            pass
+    return mac_dict
+
+
+def get_interface_name(mac_addr):
+    mac_dict = get_mac_dict()
+    return mac_dict.get(mac_addr)
+
+
+def get_pci_address(interface_name):
+    dev_path = "/sys/class/net/%s/device" % interface_name
+    if os.path.isdir(dev_path):
+        return os.readlink(dev_path).strip("./")
 
 
 def interface_has_carrier(interface_name):
