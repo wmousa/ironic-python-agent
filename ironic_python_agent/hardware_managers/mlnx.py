@@ -162,7 +162,7 @@ class MellanoxDeviceHardwareManager(hardware.HardwareManager):
                 port["extra"].get("mstconfig_validate"))
             mst_config = port["extra"]["mstconfig"]
             if mstconfig_validate:
-                for key, value in mst_config.iteritems():
+                for key, value in mst_config.items():
                     if str(value).upper() == mstconfig_dict.get(
                             key).upper():
                         LOG.info("Validate OK for %s ", key)
@@ -175,7 +175,7 @@ class MellanoxDeviceHardwareManager(hardware.HardwareManager):
                                          value))
             else:
                 LOG.debug("This's the mstconfig %s", mst_config)
-                for key, value in mst_config.iteritems():
+                for key, value in mst_config.items():
                     args = "%s=%s" % (key, value)
                     try:
                         utils.execute('mstconfig',
