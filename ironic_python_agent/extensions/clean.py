@@ -71,8 +71,9 @@ class CleanExtension(base.BaseAgentExtension):
             msg = 'Malformed clean_step, no "step" key: %s' % step
             LOG.error(msg)
             raise ValueError(msg)
+        kwargs.update(step.get('args') or {})
         try:
-            result = hardware.dispatch_to_managers(step['step'], node, ports)
+            result = hardware.dispatch_to_managers(step['step'], node, ports, **kwargs)
         except Exception as e:
             msg = ('Error performing clean_step %(step)s: %(err)s' %
                    {'step': step['step'], 'err': e})

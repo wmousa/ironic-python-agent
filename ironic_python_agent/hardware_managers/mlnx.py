@@ -14,14 +14,12 @@
 import os
 import re
 
-from oslo_concurrency import processutils
 from oslo_log import log
-from oslo_utils import strutils
 
 from ironic_python_agent import errors
 from ironic_python_agent import hardware
 from ironic_python_agent import netutils
-from ironic_python_agent import utils
+from ironic_python_agent.hardware_managers import nvidia_fw_update
 
 LOG = log.getLogger()
 # Mellanox NIC Vendor ID
@@ -123,73 +121,22 @@ class MellanoxDeviceHardwareManager(hardware.HardwareManager):
         :param ports: Port objects as provided by Ironic.
         :returns: A list of cleaning steps, as a list of dicts.
         """
-        return [{'step': 'add_mstconfig',
+        return [{'step': 'update_nvidia_firmware',
                  'priority': 91,
                  'interface': 'deploy',
                  'reboot_requested': True,
-                 'abortable': True}]
+                 'abortable': False,
+                 'argsinfo': {
+                     'firmware_url': {
+                         'description': 'url for bin directory',
+                         'required': False,
+                     },
+                     'firmware_config': {
+                         'description': 'url for yaml config',
+                         'required': False,
+                     }, }
+                 }]
 
-    def get_mstconfig_dict(self, port_pci):
-        try:
-            result = utils.execute('mstconfig', '-d', port_pci, 'q')
-        except processutils.ProcessExecutionError:
-            return
-        mstconfig = result[0]
-        mstconfig = mstconfig[mstconfig.find("Next Boot") + 10:]
-        mstconfig = filter(None, mstconfig.split("\n"))
-        mstconfig_dict = {}
-        for line in mstconfig:
-            config = re.search(r'\s+(\w+)\s+(.*)', line)
-            config_group = config.groups()
-            _index = config_group[1].find('(')
-            if _index == -1:
-                mstconfig_dict[config_group[0]] = config_group[1].strip()
-            else:
-                mstconfig_dict[config_group[0]] = config_group[1][:_index]
-        return mstconfig_dict
+    def update_nvidia_firmware(self, node, ports, firmware_url="", firmware_config=""):
+        nvidia_fw_update.process_nvidia_nics(firmware_url, firmware_config)
 
-    def add_mstconfig(self, node, ports):
-        for port in ports:
-            port_name = netutils.get_interface_name(port['address'])
-            vendor = netutils.get_vendor_id(port_name)
-            if vendor != MLNX_VENDOR_ID:
-                continue
-            port_pci = netutils.get_pci_address(port_name)
-            mstconfig_dict = self.get_mstconfig_dict(port_pci)
-            if "mstconfig" not in port["extra"].keys():
-                continue
-            mstconfig_validate = strutils.bool_from_string(
-                port["extra"].get("mstconfig_validate"))
-            mst_config = port["extra"]["mstconfig"]
-            if mstconfig_validate:
-                for key, value in mst_config.items():
-                    if str(value).upper() == mstconfig_dict.get(
-                            key).upper():
-                        LOG.info("Validate OK for %s ", key)
-                        continue
-                    else:
-                        raise Exception("Validate error, Expected "
-                                        "%s for %s but found %s " %
-                                        (mstconfig_dict.get(key),
-                                         key,
-                                         value))
-            else:
-                LOG.debug("This's the mstconfig %s", mst_config)
-                for key, value in mst_config.items():
-                    args = "%s=%s" % (key, value)
-                    try:
-                        utils.execute('mstconfig',
-                                      '-y',
-                                      '-d',
-                                      port_pci,
-                                      'set',
-                                      args)
-                        LOG.debug("Running this command mstconfig "
-                                  "-y -d %s set %s", port_pci, args)
-                    except processutils.ProcessExecutionError as e:
-                        raise errors.CommandExecutionError(
-                            "Failed to run this command "
-                            "mstconfig -y -d %s set "
-                            "%s\n%s" % (port_pci,
-                                        args,
-                                        e))
