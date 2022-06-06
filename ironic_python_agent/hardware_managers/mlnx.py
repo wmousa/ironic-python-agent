@@ -117,7 +117,7 @@ class MellanoxDeviceHardwareManager(hardware.HardwareManager):
             product=hardware._get_device_info(interface_name, 'net', 'device'),
             client_id=client_id)
 
-    def get_clean_steps(self, node, ports):
+    def get_deploy_steps(self, node, ports):
         """Get a list of clean steps with priority.
 
         :param node: The node object as provided by Ironic.
@@ -125,7 +125,7 @@ class MellanoxDeviceHardwareManager(hardware.HardwareManager):
         :returns: A list of cleaning steps, as a list of dicts.
         """
         return [{'step': 'update_nvidia_fw',
-                 'priority': 91,
+                 'priority': 150,
                  'interface': 'deploy',
                  'reboot_requested': True,
                  'abortable': True,
