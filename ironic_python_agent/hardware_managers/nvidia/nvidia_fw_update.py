@@ -670,8 +670,11 @@ def process_nvidia_nics(firmware_config, firmware_url):
     check_prereq()
     nvidia_nics = NvidiaNics()
     nvidia_nics.discover()
-    binary_getter = NvidiaFirmwareBinariesFetcher(firmware_url)
-    psid_map = get_psid_map(binary_getter)
+    if firmware_url:
+        binary_getter = NvidiaFirmwareBinariesFetcher(firmware_url)
+        psid_map = get_psid_map(binary_getter)
+    else:
+        psid_map = {}
     cfgs = read_yaml_cfgs(firmware_config)
     pcis_to_be_processed, force_update_dict = filter_cfgs(nvidia_nics, cfgs)
     process_devices(psid_map, pcis_to_be_processed, force_update_dict)
