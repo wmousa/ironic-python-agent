@@ -18,12 +18,12 @@ import shutil
 import tempfile
 import threading
 
+import yaml
 from oslo_concurrency import processutils
 from oslo_log import log
 from six.moves import html_parser
 from six.moves.urllib import error as urlError
 from six.moves.urllib import request as urlRequest
-import yaml
 
 FW_VERSION_REGEX = r'FW Version:\s*\t*(?P<fw_ver>\d+\.\d+\.\d+)'
 RUNNING_FW_VERSION_REGEX = \
@@ -130,7 +130,7 @@ def run_command(*cmd, **kwargs):
         LOG.error("Failed to execute %s, %s", ' '.join(cmd), str(e))
         raise e
     if err:
-        LOG.warning("Got stderr output: ", err)
+        LOG.warning("Got stderr output: %s", err)
     LOG.debug(out)
     return out
 
@@ -194,8 +194,8 @@ class NvidiaNicFirmwareOps(object):
         """
         if not self.dev_info:
             self.query_device()
-        LOG.info("Device firmware version: ", self.dev_info['fw_ver'],
-                 ", Image firmware version: ", image_info['fw_ver'])
+        LOG.info("Device firmware version: %s , Image firmware version: %s",
+                 self.dev_info['fw_ver'], image_info['fw_ver'])
         return self.dev_info['fw_ver'] < image_info['fw_ver']
 
     def is_image_changed(self):
@@ -435,7 +435,7 @@ class NvidiaNicConfig(object):
         :param param_name: if provided retireve only given configuration
         :return:  dict {"PARAM_NAME": "Param value", ....}
         """
-        LOG.info("Getting configurations for device: ", self.pci_dev)
+        LOG.info("Getting configurations for device: %s", self.pci_dev)
         cmd = ["mstconfig", "-d", self.pci_dev, "q"]
         if args:
             cmd.extend(args)
@@ -470,8 +470,8 @@ class NvidiaNicConfig(object):
         for key, value in conf_dict.items():
             if not self.param_supp_by_config_tool(key):
                 LOG.error(
-                    "Configuraiton: ", key, "is not supported by mstconfig,"
-                    " please update to the latest mstflint package.")
+                    "Configuraiton: %s is not supported by mstconfig,"
+                    " please update to the latest mstflint package.", key)
                 continue
             if current_mlx_config.get(key):
                 try:
@@ -480,9 +480,9 @@ class NvidiaNicConfig(object):
                         # Aggregate all configurations required to be modified
                         params_to_set.append("%s=%s" % (key, value))
                     else:
-                        LOG.info("value of ", key, " for device ",
-                                 self.pci_dev, " is already configured as ",
-                                 value, " no need to update it")
+                        LOG.info("value of %s for device %s is already "
+                                 "configured as %s no need to update it",
+                                 key, self.pci_dev, value)
                 except ValueError:
                     # Handle other integers values
                     if str(value).lower() not in \
@@ -490,17 +490,17 @@ class NvidiaNicConfig(object):
                         # Aggregate all configurations required to be modified
                         params_to_set.append("%s=%s" % (key, value))
                     else:
-                        LOG.info("value of ", key, " for device ",
-                                 self.pci_dev, " is already configured as ",
-                                 value, " no need to update it")
+                        LOG.info("value of %s for device %s  is already "
+                                 "configured as %s no need to update it",
+                                 key, self.pci_dev, value)
             else:
-                LOG.debug("config ", key, " for device ", self.pci_dev,
-                          " is not supported with current fw, "
-                          "skipping setting it..")
+                LOG.debug("config %s for device %s is not supported with "
+                          "current fw, skipping setting it..",
+                          key, self.pci_dev)
         if params_to_set:
             cmd = ["mstconfig", "-d", self.pci_dev, "-y", "set"]
             cmd.extend(params_to_set)
-            LOG.info("Setting configurations for device: ", self.pci_dev)
+            LOG.info("Setting configurations for device: %s", self.pci_dev)
             run_command(*cmd)
             LOG.info("Set device configurations: Setting %s done successfully",
                      " ".join(params_to_set))
@@ -514,9 +514,16 @@ def read_yaml_cfgs(YAML_CONFIG):
     :param YAML_CONFIG:
     :return: list of cfgs
     """
-    response = urlRequest.urlopen(YAML_CONFIG)
-    cfgs = yaml.safe_load(response)
-    return cfgs
+    try:
+        response = urlRequest.urlopen(YAML_CONFIG)
+        cfgs = yaml.safe_load(response)
+        return cfgs
+    except yaml.YAMLError as yaml_e:
+        LOG.error("Failed to load yaml file. %s", str(yaml_e))
+        raise yaml_e
+    except Exception as e:
+        LOG.error("Failed to open file. %s", str(e))
+        raise e
 
 
 def filter_by_selector(all_devs, selector_list, selector):
@@ -667,14 +674,15 @@ def get_psid_map(binary_getter):
 
 
 def process_nvidia_nics(firmware_config, firmware_url):
-    check_prereq()
-    nvidia_nics = NvidiaNics()
-    nvidia_nics.discover()
-    if firmware_url:
-        binary_getter = NvidiaFirmwareBinariesFetcher(firmware_url)
-        psid_map = get_psid_map(binary_getter)
-    else:
-        psid_map = {}
-    cfgs = read_yaml_cfgs(firmware_config)
-    pcis_to_be_processed, force_update_dict = filter_cfgs(nvidia_nics, cfgs)
-    process_devices(psid_map, pcis_to_be_processed, force_update_dict)
+    if any([firmware_config, firmware_url]):
+        check_prereq()
+        nvidia_nics = NvidiaNics()
+        nvidia_nics.discover()
+        if firmware_url:
+            binary_getter = NvidiaFirmwareBinariesFetcher(firmware_url)
+            psid_map = get_psid_map(binary_getter)
+        else:
+            psid_map = {}
+        cfgs = read_yaml_cfgs(firmware_config)
+        pcis_to_be_processed, force_update_dict = filter_cfgs(nvidia_nics, cfgs)
+        process_devices(psid_map, pcis_to_be_processed, force_update_dict)

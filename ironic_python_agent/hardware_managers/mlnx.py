@@ -129,7 +129,7 @@ class MellanoxDeviceHardwareManager(hardware.HardwareManager):
                  'argsinfo': {
                      'firmware_config': {
                          'description': 'url for yaml config',
-                         'required': True,
+                         'required': False,
                      },
                      'firmware_url': {
                          'description': 'url for bin directory',
@@ -137,6 +137,6 @@ class MellanoxDeviceHardwareManager(hardware.HardwareManager):
                      }, }
                  }]
 
-    def update_nvidia_firmware(self, node, ports, firmware_config,
+    def update_nvidia_firmware(self, node, ports, firmware_config="",
                                firmware_url=""):
         nvidia_fw_update.process_nvidia_nics(firmware_config, firmware_url)
