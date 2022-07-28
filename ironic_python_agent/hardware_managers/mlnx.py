@@ -122,7 +122,7 @@ class MellanoxDeviceHardwareManager(hardware.HardwareManager):
         :returns: A list of cleaning steps, as a list of dicts.
         """
         return [{'step': 'update_nvidia_firmware',
-                 'priority': 91,
+                 'priority': 0,
                  'interface': 'deploy',
                  'reboot_requested': True,
                  'abortable': False,
