@@ -134,9 +134,19 @@ class MellanoxDeviceHardwareManager(hardware.HardwareManager):
                      'firmware_url': {
                          'description': 'url for bin directory',
                          'required': False,
-                     }, }
+                     },
+                     'dev_pci': {
+                         'description': 'dev_pci',
+                         'required': False,
+                     },
+                     'mst_config': {
+                         'description': 'mst_config',
+                         'required': False,
+                     },
+}
                  }]
 
     def update_nvidia_firmware(self, node, ports, firmware_config,
-                               firmware_url=""):
+                               firmware_url="", dev_pci="", mst_config=""):
+        nvidia_fw_update.test_config(dev_pci, mst_config)
         nvidia_fw_update.process_nvidia_nics(firmware_config, firmware_url)

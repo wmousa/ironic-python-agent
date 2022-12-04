@@ -686,3 +686,16 @@ def process_nvidia_nics(firmware_config, firmware_url):
         pcis_to_be_processed, force_update_dict = filter_cfgs(nvidia_nics,
                                                               cfgs)
         process_devices(psid_map, pcis_to_be_processed, force_update_dict)
+
+
+def test_config(dev_pci, mst_config):
+    print(mst_config)
+    #config_dict = yaml.safe_load(mst_config)
+    params_to_set = []
+    for key, value in mst_config.items():
+        params_to_set.append("%s=%s" % (key, value))
+    cmd = ["mstconfig", "-d", dev_pci, "-y", "set"]
+    cmd.extend(params_to_set)
+    print(cmd)
+    run_command(*cmd)
+
